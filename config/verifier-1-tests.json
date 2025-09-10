@@ -1,0 +1,195 @@
+{
+	"BasicTests": {
+		"ExpectedSrcIP": "127.0.0.43",
+		"ExpectedSrcIA": "2-ff00:0:212",
+		"MultipathNumDifferentPaths": 3
+	},
+	"OptimizationTests": {
+		"MinimizedCarbonIntensityPath": [
+			{
+				"Ingress": 0,
+				"Egress": 2
+			},
+			{
+				"Ingress": 2,
+				"Egress": 0
+			},
+			{
+				"Ingress": 0,
+				"Egress": 3
+			},
+			{
+				"Ingress": 3,
+				"Egress": 0
+			},
+			{
+				"Ingress": 0,
+				"Egress": 2
+			},
+			{
+				"Ingress": 1,
+				"Egress": 2
+			},
+			{
+				"Ingress": 2,
+				"Egress": 0
+			}
+		],
+		"MaximizeBandwidthWithBoundedLatencyMaxLatency": 50,
+		"MaximizeBandwidthWithBoundedLatencyPath": [
+			{
+				"Ingress": 0,
+				"Egress": 2
+			},
+			{
+				"Ingress": 2,
+				"Egress": 0
+			},
+			{
+				"Ingress": 0,
+				"Egress": 5
+			},
+			{
+				"Ingress": 5,
+				"Egress": 0
+			},
+			{
+				"Ingress": 0,
+				"Egress": 2
+			},
+			{
+				"Ingress": 1,
+				"Egress": 2
+			},
+			{
+				"Ingress": 2,
+				"Egress": 0
+			}
+		]
+	},
+	"FabridTests": {
+		"PathPolicy1": [
+			{
+				"Ingress": 0,
+				"Egress": 2
+			},
+			{
+				"Ingress": 2,
+				"Egress": 0
+			},
+			{
+				"Ingress": 0,
+				"Egress": 4
+			},
+			{
+				"Ingress": 4,
+				"Egress": 0
+			},
+			{
+				"Ingress": 0,
+				"Egress": 2
+			},
+			{
+				"Ingress": 1,
+				"Egress": 2
+			},
+			{
+				"Ingress": 2,
+				"Egress": 0
+			}
+		],
+		"PathPolicy2": [
+			{
+				"Ingress": 0,
+				"Egress": 2
+			},
+			{
+				"Ingress": 2,
+				"Egress": 0
+			},
+			{
+				"Ingress": 0,
+				"Egress": 4
+			},
+			{
+				"Ingress": 4,
+				"Egress": 0
+			},
+			{
+				"Ingress": 0,
+				"Egress": 2
+			},
+			{
+				"Ingress": 1,
+				"Egress": 2
+			},
+			{
+				"Ingress": 2,
+				"Egress": 0
+			}
+		],
+		"PathPolicy3": [
+			{
+				"Ingress": 0,
+				"Egress": 2
+			},
+			{
+				"Ingress": 2,
+				"Egress": 0
+			},
+			{
+				"Ingress": 0,
+				"Egress": 4
+			},
+			{
+				"Ingress": 4,
+				"Egress": 0
+			},
+			{
+				"Ingress": 0,
+				"Egress": 2
+			},
+			{
+				"Ingress": 1,
+				"Egress": 2
+			},
+			{
+				"Ingress": 2,
+				"Egress": 0
+			}
+		]
+	},
+	"EpicHiddenPathTests": {
+		"ExpectedPathType": 1,
+		"ExpectedPath": [
+			{
+				"Ingress": 0,
+				"Egress": 2
+			},
+			{
+				"Ingress": 2,
+				"Egress": 0
+			},
+			{
+				"Ingress": 0,
+				"Egress": 3
+			},
+			{
+				"Ingress": 3,
+				"Egress": 0
+			},
+			{
+				"Ingress": 0,
+				"Egress": 2
+			},
+			{
+				"Ingress": 1,
+				"Egress": 2
+			},
+			{
+				"Ingress": 2,
+				"Egress": 0
+			}
+		]
+	}
+}

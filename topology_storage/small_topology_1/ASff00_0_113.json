@@ -1,0 +1,54 @@
+{
+    "Meta": {
+        "1": {
+            "to": "114",
+            "type": "child"
+        },
+        "2": {
+            "to": "112",
+            "type": "parent"
+        }
+    },
+    "Bandwidth": {
+        "1": {
+            "Inter": 50,
+            "Intra": {
+                "2": 1000
+            }
+        },
+        "2": {
+            "Inter": 25,
+            "Intra": {
+                "1": 1000
+            }
+        }
+    },
+    "CarbonIntensity": {
+        "1": {
+            "Inter": 20,
+            "Intra": {
+                "2": 0
+            }
+        },
+        "2": {
+            "Inter": 10,
+            "Intra": {
+                "1": 0
+            }
+        }
+    },
+    "Latency": {
+        "1": {
+            "Inter": "15ms",
+            "Intra": {
+                "2": "0ms"
+            }
+        },
+        "2": {
+            "Inter": "1ms",
+            "Intra": {
+                "1": "0ms"
+            }
+        }
+    }
+}

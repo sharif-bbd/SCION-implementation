@@ -1,0 +1,9 @@
+local: true
+local_identifier: 1000
+local_description: Route only over routers produced by manufacturer A
+connections:
+  - ingress:
+      type: wildcard
+    egress:
+      type: wildcard
+    mpls_label: 1

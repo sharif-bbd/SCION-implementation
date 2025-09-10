@@ -1,0 +1,13 @@
+local: true
+local_identifier: 1002
+local_description: Route only over routers produced by manufacturer C
+connections:
+  - ingress:
+      type: interface
+      interface: 2
+    egress:
+      type: ipv6
+      ip: fd00:f00d:cafe::7f00:23
+      prefix: 128
+    mpls_label: 1
+

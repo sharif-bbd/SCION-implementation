@@ -1,0 +1,18 @@
+groups:
+  "ff00:0:113-aaaa":
+    owner: "1-ff00:0:113"
+    writers:
+      - "1-ff00:0:113"
+    readers:
+      - "1-ff00:0:113"
+      - "1-ff00:0:114"
+      - "2-ff00:0:212"
+      - "2-ff00:0:213"
+    registries:
+      - "1-ff00:0:113"
+registration_policy_per_interface:
+  2:
+    - public
+    - "ff00:0:113-aaaa"
+  1:
+    - "ff00:0:113-aaaa"

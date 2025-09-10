@@ -1,0 +1,10 @@
+local: true
+local_identifier: 2000
+local_description: Route only over routers that support remote attestation
+connections:
+  - ingress:
+      type: wildcard
+    egress:
+      type: wildcard
+    mpls_label: 1
+    

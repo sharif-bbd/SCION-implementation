@@ -1,0 +1,9 @@
+[general]
+id = "verifier-1"
+
+[log.console]
+level = "debug"
+
+[verifier]
+localIA = "1-ff00:0:113"
+testFile = "config/verifier-1-tests.json"

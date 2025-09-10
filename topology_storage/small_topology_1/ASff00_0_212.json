@@ -1,0 +1,36 @@
+{
+    "Meta": {
+        "1": {
+            "to": "213",
+            "type": "child"
+        },
+        "2": {
+            "to": "210",
+            "type": "parent"
+        }
+    },
+    "Bandwidth": {
+        "2": {
+            "Inter": 55
+        }
+    },
+    "CarbonIntensity": {
+        "1": {
+            "Inter": 30,
+            "Intra": {
+                "2": 0
+            }
+        },
+        "2": {
+            "Inter": 20,
+            "Intra": {
+                "1": 0
+            }
+        }
+    },
+    "Latency": {
+        "2": {
+            "Inter": "30ms"
+        }
+    }
+}

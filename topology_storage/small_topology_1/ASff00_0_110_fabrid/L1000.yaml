@@ -1,0 +1,32 @@
+local: true
+local_identifier: 1000
+local_description: Route only over routers produced by manufacturer A
+connections:
+  - ingress:
+      type: interface
+      interface: 3
+    egress:
+      type: interface
+      interface: 1
+    mpls_label: 1
+  - ingress:
+      type: interface
+      interface: 1
+    egress:
+      type: interface
+      interface: 3
+    mpls_label: 1
+  - ingress:
+      type: interface
+      interface: 4
+    egress:
+      type: interface
+      interface: 2
+    mpls_label: 1
+  - ingress:
+      type: interface
+      interface: 2
+    egress:
+      type: interface
+      interface: 4
+    mpls_label: 1
