@@ -12,16 +12,16 @@ const (
 type TestID int
 
 const (
-	BasicConnectivityTest               TestID = 1
-	BasicMultipathTest                  TestID = 2
+	BasicConnectivityTest               TestID = 01
+	BasicMultipathTest                  TestID = 02
 	MinimizeCarbonIntensity             TestID = 10
 	MaximizeBandwidthWithBoundedLatency TestID = 11
-	FabridConnectivityTest              TestID = 20
-	FabridPolicy1Test                   TestID = 21
-	FabridPolicy2Test                   TestID = 22
-	FabridPolicy3Test                   TestID = 23
-	ASFinderTest                        TestID = 30
-	EpicHiddenPathTest                  TestID = 40
+	EpicHiddenPathTest                  TestID = 20
+	FabridConnectivityTest              TestID = 30
+	FabridPolicy1Test                   TestID = 31
+	FabridPolicy2Test                   TestID = 32
+	FabridPolicy3Test                   TestID = 33
+	ASFinderTest                        TestID = 40
 )
 
 type Test struct {
