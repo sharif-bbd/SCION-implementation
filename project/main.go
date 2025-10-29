@@ -19,6 +19,7 @@ import (
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/path"
 
+	"github.com/scionproto/scion/private/path/fabridquery"
 	"gitlab.inf.ethz.ch/PRV-PERRIG/netsec-course/project-scion/lib"
 )
 
@@ -776,6 +777,357 @@ func test11(sd daemon.Connector, ctx context.Context, localIA addr.IA, scionNet 
 	return nil
 }
 
+func checkFabridEnabled(paths []snet.Path, hops [][]snet.HopInterface) []snet.Path{
+	var res []snet.Path
+	for i, path := range paths{
+		fabridEnabled := true
+		for _, hop := range hops[i]{
+			if !hop.FabridEnabled{
+				fabridEnabled = false
+			}
+		}
+		if fabridEnabled{
+			res = append(res, path)
+		}
+	}
+	return res
+}
+
+
+func test30(sd daemon.Connector, ctx context.Context, localIA addr.IA, scionNet snet.SCIONNetwork, listen *net.UDPAddr) error{
+	paths, err := findPath(sd, ctx, localIA, lib.FabridConnectivityTest)
+	if err != nil {
+		return fmt.Errorf("couldn't fetch paths : %w", err)
+	}
+
+	var hops [][]snet.HopInterface
+
+	for i, path := range paths{
+		hops = append(hops, path.Metadata().Hops())
+		fmt.Printf("Fabrid Info for Path %d\nEnabled: ", i)
+		fabInfo := path.Metadata().FabridInfo
+		for _, f := range fabInfo{
+			fmt.Printf("%t, ", f.Enabled)
+		}
+		fmt.Println("")
+		fmt.Printf("Policies : ")
+		for _, f := range fabInfo{
+			fmt.Println(f.Policies)
+		}
+		fmt.Println("Hops : ", hops[i])
+		
+	}
+	
+	paths = checkFabridEnabled(paths, hops)
+	if len(paths) == 0{
+		return fmt.Errorf("none of the Paths support Fabrid")
+	}
+	paths = findShortestPaths(paths)
+	if len(paths) == 0{
+		return fmt.Errorf("no FABRID-enabled paths found")
+	}
+	p := paths[0]
+	selectedHops := p.Metadata().Hops()
+	fmt.Println("Chosen Path : ", p)
+	fmt.Println("Selected Hops : ", selectedHops)
+	input := "0-0#0,0@0"
+	exp,err := fabridquery.ParseFabridQuery(input)
+	if err != nil{
+		return fmt.Errorf("couldn't parse fabrid query string : %w", err)
+	}
+	var ml *fabridquery.MatchList
+	ml = &fabridquery.MatchList{
+		SelectedPolicies: make([]*fabridquery.Policy, len(selectedHops)),
+	}
+
+	_, ml = exp.Evaluate(selectedHops, ml)
+
+	fmt.Println("MatchList : ", ml)
+	policyIDs := ml.Policies()
+
+	scionDP, ok := p.Dataplane().(path.SCION)
+	if !ok{
+		return fmt.Errorf("path is not a SCION dataplane path")
+	}
+
+	fabridConfig := &path.FabridConfig{
+		LocalIA: localIA,
+		LocalAddr: local,
+		DestinationIA: remote.IA,
+		DestinationAddr: remote.Host.IP.String(),
+	}
+	
+	fabridDPP, err := path.NewFABRIDDataplanePath(
+		scionDP,
+		selectedHops,
+		policyIDs,
+		fabridConfig,
+		sd.FabridKeys,
+	)
+	
+	if err != nil{
+		return fmt.Errorf("couldn't create FABRID dataplane path : %w", err)
+	}
+
+	remote.Path = fabridDPP
+	remote.NextHop = p.UnderlayNextHop()
+
+	conn, err := scionNet.Dial(ctx, "udp", listen, &remote)
+	if err != nil{
+		return fmt.Errorf("could not establish a connection : %w", err)
+	}
+
+	msg := lib.Test{ID: lib.FabridConnectivityTest, Payload: true}
+	m, _ := json.Marshal(msg)
+	fmt.Println(m)
+
+	_,err = conn.Write(m)
+	if err != nil{
+		return fmt.Errorf("couldn't write the message : %w", err)
+	}
+
+	buf := make([]byte, 2048)
+	n, err := conn.Read(buf)
+	if err != nil{
+		return fmt.Errorf("couldn't read the message : %w", err)
+	}
+	if n > 2048{
+		return fmt.Errorf("message longer than buffer")
+	}
+
+	var res lib.TestResult
+	if err := json.Unmarshal(buf[:n], &res); err != nil{
+		fmt.Println("Raw reply:", string(buf[:n]))
+		return err
+	}
+	fmt.Printf("Verifier Replied: ID=%d State=%s \n", res.ID, res.State)
+
+	return nil
+}
+
+type ValidFABRIDPath struct{
+	Path snet.Path
+	Hops []snet.HopInterface
+	matches bool
+	ml *fabridquery.MatchList
+}
+
+// sortValidFABRIDPaths sorts ValidFABRIDPath slice by path length (shortest first),
+// then by interface IDs lexicographically, without removing any elements.
+func sortValidFABRIDPaths(fabridPaths []ValidFABRIDPath) []ValidFABRIDPath {
+    if len(fabridPaths) <= 1 {
+        return fabridPaths
+    }
+
+    sort.Slice(fabridPaths, func(i, j int) bool {
+        pathI := fabridPaths[i].Path
+        pathJ := fabridPaths[j].Path
+        
+        metaI := pathI.Metadata()
+        metaJ := pathJ.Metadata()
+        
+        // Handle nil metadata
+        if metaI == nil && metaJ != nil {
+            return false
+        }
+        if metaI != nil && metaJ == nil {
+            return true
+        }
+        if metaI == nil && metaJ == nil {
+            return false
+        }
+        
+        // Compare by number of interfaces first (shorter is better)
+        lenI := len(metaI.Interfaces)
+        lenJ := len(metaJ.Interfaces)
+        
+        if lenI != lenJ {
+            return lenI < lenJ
+        }
+        
+        // Same length - compare by interface IDs
+        return comparePathsByInterfaceIDs(pathI, pathJ) < 0
+    })
+
+    return fabridPaths
+}
+
+func checkFabrid(exp fabridquery.Expressions, paths []snet.Path, hops [][]snet.HopInterface) []ValidFABRIDPath{
+	var res []ValidFABRIDPath
+
+	for i, path := range paths{
+		hop := path.Metadata().Hops()
+		var ml *fabridquery.MatchList
+		ml = &fabridquery.MatchList{
+			SelectedPolicies: make([]*fabridquery.Policy, len(hop)),
+		}
+		b, ml := exp.Evaluate(hop, ml)
+
+		good := true
+		fmt.Printf("boolean from evaluate : %t\n", b)
+		for i, pol := range ml.SelectedPolicies{
+			if pol == nil || pol.String() == "reject" {
+				good =false
+
+			}
+			fmt.Printf("Good on %d element : %t\n", i, good)
+		}
+		
+		if b && good{
+			res = append(res, ValidFABRIDPath{Path: path, Hops: hop, matches: b, ml: ml})
+			fmt.Printf("After checking path %d : %v\n", i, res)
+		}
+	}
+
+	return res
+	
+}
+
+
+func test31(sd daemon.Connector, ctx context.Context, localIA addr.IA, scionNet snet.SCIONNetwork, listen *net.UDPAddr) error{
+
+	paths, err := findPath(sd, ctx, localIA, lib.FabridPolicy1Test)
+	fmt.Println("Lengths of paths : ", len(paths))
+	if err != nil{
+		return fmt.Errorf("couldn't fetch paths : %w", err)
+	}
+
+	var hops [][]snet.HopInterface
+
+	for i, path := range paths{
+		hops = append(hops, path.Metadata().Hops())
+		fmt.Printf("Fabrid Info for Path %d\nEnabled: ", i)
+		fabInfo := path.Metadata().FabridInfo
+		for _, f := range fabInfo{
+			fmt.Printf("%t, ", f.Enabled)
+		}
+		fmt.Println("")
+		fmt.Printf("Policies : ")
+		for _, f := range fabInfo{
+			fmt.Println(f.Policies)
+		}
+		fmt.Println("Hops : ", hops[i])
+	}
+	paths = checkFabridEnabled(paths, hops)
+	if len(paths) == 0{
+		return fmt.Errorf("none of the Paths support Fabrid")
+	}
+	fmt.Println("Length of Paths after check Fabrid enabled : ", len(paths))
+
+
+	fmt.Println("Length of paths after find shortest path : ", len(paths))
+
+	input := "(0-0#0,0@L1000 + {0-0#0,0@L1001 ? 0-0#0,0@L1001 : 0-0#0,0@REJECT} + 0-0#0,0@REJECT)"
+	exp, err := fabridquery.ParseFabridQuery(input)
+	if err !=nil{
+		return fmt.Errorf("couldn't parse the FABRID query string: %w", err)
+	}
+
+	fabridStruct := checkFabrid(exp, paths, hops)
+
+	fabridStruct = sortValidFABRIDPaths(fabridStruct)
+	var chosenFabrid ValidFABRIDPath
+
+	var p snet.Path
+
+	validP := len(fabridStruct) != 0
+
+	if !validP{
+		paths = findShortestPaths(paths)
+		selectedHops := paths[0].Metadata().Hops()
+		var ml *fabridquery.MatchList
+		ml = &fabridquery.MatchList{
+			SelectedPolicies: make([]*fabridquery.Policy, len(selectedHops)),
+		}
+
+		_, ml = exp.Evaluate(selectedHops, ml)
+
+		chosenFabrid = ValidFABRIDPath{Path: paths[0], Hops: selectedHops, matches: false, ml: ml}
+		p = chosenFabrid.Path
+	}else{
+		chosenFabrid = fabridStruct[0]
+		p = chosenFabrid.Path
+	}
+	fmt.Println("Matches : ", chosenFabrid.matches)
+	fmt.Println("Chosen Path : ", p)
+	fmt.Println("Selected Hops : ", chosenFabrid.Hops)
+	fmt.Println("MatchList : ", chosenFabrid.ml)
+
+	policyIDs := chosenFabrid.ml.Policies()
+
+	scionDP, ok := p.Dataplane().(path.SCION)
+	if !ok{
+		return fmt.Errorf("path is not a SCION dataplane path")
+	}
+
+	fabridConfig := &path.FabridConfig{
+		LocalIA: localIA,
+		LocalAddr: local,
+		DestinationIA: remote.IA,
+		DestinationAddr: remote.Host.IP.String(),
+	}
+	
+	fabridDPP, err := path.NewFABRIDDataplanePath(
+		scionDP,
+		chosenFabrid.Hops,
+		policyIDs,
+		fabridConfig,
+		sd.FabridKeys,
+	)
+
+
+
+	
+	if err != nil{
+		return fmt.Errorf("couldn't create FABRID dataplane path : %w", err)
+	}
+
+	remote.Path = fabridDPP
+	remote.NextHop = p.UnderlayNextHop()
+
+	conn, err := scionNet.Dial(ctx, "udp", listen, &remote)
+	if err != nil{
+		return fmt.Errorf("could not establish a connection : %w", err)
+	}
+
+
+	msg := lib.Test{ID: lib.FabridPolicy1Test, Payload: chosenFabrid.matches}
+	m, _ := json.Marshal(msg)
+	fmt.Println(m)
+
+
+
+	_,err = conn.Write(m)
+	if err != nil{
+		return fmt.Errorf("couldn't write the message : %w", err)
+	}
+
+
+	buf := make([]byte, 4096)
+	
+	n, err := conn.Read(buf)
+
+	if err != nil{
+		return fmt.Errorf("couldn't read the message : %w", err)
+	}
+
+
+	if n > 2048{
+		return fmt.Errorf("message longer than buffer")
+	}
+
+	var res lib.TestResult
+	if err := json.Unmarshal(buf[:n], &res); err != nil{
+		fmt.Println("Raw reply:", string(buf[:n]))
+		return err
+	}
+	fmt.Printf("Verifier Replied: ID=%d State=%s \n", res.ID, res.State)
+
+	fmt.Println("CHECK")
+
+	return nil
+}
+
 
 func realMain() error {
 	// Your code starts here.
@@ -837,6 +1189,19 @@ func realMain() error {
 		return fmt.Errorf("test 20 failed: %w", err)
 	}
 
+	fmt.Println("===================== TEST 30 =====================")
+
+	err = test30(sd, ctx, localIA, scionNet, listen)
+	if err != nil{
+		return fmt.Errorf("test 30 failed : %w", err)
+	}
+
+	fmt.Println("===================== TEST 31 =====================")
+
+	err = test31(sd, ctx, localIA, scionNet, listen)
+	if err !=nil{
+		return fmt.Errorf("test 31 failed : %w", err)
+	}
 
 	return nil
 }
