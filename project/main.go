@@ -984,9 +984,9 @@ func checkFabrid(exp fabridquery.Expressions, paths []snet.Path, hops [][]snet.H
 }
 
 
-func test31(sd daemon.Connector, ctx context.Context, localIA addr.IA, scionNet snet.SCIONNetwork, listen *net.UDPAddr) error{
+func testFabridPolicy(sd daemon.Connector, ctx context.Context, localIA addr.IA, scionNet snet.SCIONNetwork, listen *net.UDPAddr, in string, testId lib.TestID) error{
 
-	paths, err := findPath(sd, ctx, localIA, lib.FabridPolicy1Test)
+	paths, err := findPath(sd, ctx, localIA, testId)
 	fmt.Println("Lengths of paths : ", len(paths))
 	if err != nil{
 		return fmt.Errorf("couldn't fetch paths : %w", err)
@@ -1017,7 +1017,7 @@ func test31(sd daemon.Connector, ctx context.Context, localIA addr.IA, scionNet 
 
 	fmt.Println("Length of paths after find shortest path : ", len(paths))
 
-	input := "(0-0#0,0@L1000 + {0-0#0,0@L1001 ? 0-0#0,0@L1001 : 0-0#0,0@REJECT} + 0-0#0,0@REJECT)"
+	input := in
 	exp, err := fabridquery.ParseFabridQuery(input)
 	if err !=nil{
 		return fmt.Errorf("couldn't parse the FABRID query string: %w", err)
@@ -1091,7 +1091,7 @@ func test31(sd daemon.Connector, ctx context.Context, localIA addr.IA, scionNet 
 	}
 
 
-	msg := lib.Test{ID: lib.FabridPolicy1Test, Payload: chosenFabrid.matches}
+	msg := lib.Test{ID: testId, Payload: chosenFabrid.matches}
 	m, _ := json.Marshal(msg)
 	fmt.Println(m)
 
@@ -1198,10 +1198,24 @@ func realMain() error {
 
 	fmt.Println("===================== TEST 31 =====================")
 
-	err = test31(sd, ctx, localIA, scionNet, listen)
+	input := "(0-0#0,0@L1000 + {0-0#0,0@L1001 ? 0-0#0,0@L1001 : 0-0#0,0@REJECT} + 0-0#0,0@REJECT)"
+	err = testFabridPolicy(sd, ctx, localIA, scionNet, listen, input, lib.FabridPolicy1Test)
 	if err !=nil{
 		return fmt.Errorf("test 31 failed : %w", err)
 	}
+
+	fmt.Println("===================== TEST 32 =====================")
+
+	input = "({1-0#0,0@L1000 ? 1-0#0,0@L1000 : 1-0#0,0@REJECT} + {2-0#0,0@L1001 ? 2-0#0,0@L1001 : 2-0#0,0@REJECT} + {2-0#0,0@L1002 ? 2-0#0,0@L1002 : 2-0#0,0@REJECT} + 0-0#0,0@REJECT)"
+	err = testFabridPolicy(sd, ctx, localIA, scionNet, listen, input, lib.FabridPolicy2Test)
+	if err != nil{
+		return fmt.Errorf("test 32 failed : %w", err)
+	}
+
+
+	fmt.Println("===================== TEST 33 =====================")
+
+	
 
 	return nil
 }
